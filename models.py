@@ -31,6 +31,7 @@ class HandleClient( Thread ):
                 break
     
             if( pkt['FIN'] ):
+                isFIN = True
                 pkt_FIN = self.close_connection()
             else:
                 file.write( pkt['data'] )
