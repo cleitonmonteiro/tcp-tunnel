@@ -7,5 +7,8 @@ try:
 except:
     print('d Usage : {} <port> <file_dir>'.format( argv[0] ))
 
-HandleConnection( port, file_dir ).start()
+clients = []
+
+hc = HandleConnection( port, file_dir, clients)
+hc.start()
 

@@ -1,15 +1,16 @@
 from socket     import socket, AF_INET, SOCK_DGRAM
 from tools      import make_pkt, unpack, isACK_of
-from threading  import Thread
+from threading  import Thread, Event
 
 
 class HandleClient( Thread ):
     
     def __init__( self, client_id, address, udp_port , file_dir ):
-        self.client_id = client_id
-        self.address   = address    
-        self.udp_port  = udp_port
-        self.file_dir  = file_dir      
+        self.client_id       = client_id
+        self.address         = address    
+        self.udp_port        = udp_port
+        self.file_dir        = file_dir
+        self.close_connection= Event()    
         Thread.__init__( self )
 
     def run( self ):
@@ -22,7 +23,7 @@ class HandleClient( Thread ):
         previous_pkt =  pkt_FIN = {}
         isFIN = False
 
-        while( True ):
+        while( not self.close_connection.is_set() ):
             data, _          = self.conn.recvfrom( 524 )
             pkt = unpack( data )          
             
@@ -32,19 +33,21 @@ class HandleClient( Thread ):
     
             if( pkt['FIN'] ):
                 isFIN = True
-                pkt_FIN = self.close_connection()
+                pkt_FIN = self.close_tcp_connection()
             else:
                 file.write( pkt['data'] )
                 pkt = make_pkt(seq_number=666, ACK=1, data="RECEIVED")
                 self.send_pkt( pkt )
             
             previous_pkt = pkt
+        
+        self.close()
     
     def send_pkt_syn_ack( self ):    
         pkt = make_pkt( seq_number=4321, ack_number=12346, connection_id=self.client_id, SYN=1, ACK=1 )
         self.send_pkt( pkt )
     
-    def close_connection( self ):
+    def close_tcp_connection( self ):
         pkt = make_pkt( connection_id=self.client_id, ACK=1)
         self.send_pkt( pkt )
 
@@ -56,29 +59,41 @@ class HandleClient( Thread ):
     def send_pkt(self, pkt):
         self.conn.sendto( pkt, self.address)
 
+    def close( self ):
+        pass
+
 
 class HandleConnection( Thread ):
     
-    def __init__( self, udp_port, filer_dir):
-        self.udp_port = udp_port
-        self.file_dir = filer_dir
+    def __init__( self, udp_port, filer_dir, clients):
+        self.udp_port        = udp_port
+        self.file_dir        = filer_dir
+        self.clients         = clients
+        self.close_connection= Event()
         Thread.__init__( self )
 
     def run( self ):
-        client_id      = 1
-        udp_port_client= 5000
-        sock           = socket( AF_INET, SOCK_DGRAM )
-        sock.bind( ( "", self.udp_port ) )
+        client_id           = 1
+        udp_port_client     = 5000
+        self.sock           = socket( AF_INET, SOCK_DGRAM )
+        self.sock.bind( ( "", self.udp_port ) )
         
-        while( True ):
-            data, addr = sock.recvfrom( 524 )
+        while( not self.close_connection.is_set() ):
+            data, addr = self.sock.recvfrom( 524 )
             pkt = unpack( data )
             print( "Received : ", pkt )
 
-            HandleClient( client_id, addr, udp_port_client, self.file_dir ).start()
-            
+            hc = HandleClient( client_id, addr, udp_port_client, self.file_dir )
+            hc.start()
+
+            self.clients.append(hc)
             client_id       += 1
             udp_port_client += 1
+
+        self.close_all_connections()
+    
+    def close_all_connections( self ):
+        pass
 
 
 class ConnectionToServer():
