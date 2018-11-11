@@ -41,7 +41,7 @@ class HandleClient( Thread ):
             previous_pkt = pkt
     
     def send_pkt_syn_ack( self ):    
-        pkt = make_pkt( seq_number=4321, ack_number=12346, SYN=1, ACK=1 )
+        pkt = make_pkt( seq_number=4321, ack_number=12346, connection_id=self.client_id, SYN=1, ACK=1 )
         self.send_pkt( pkt )
     
     def close_connection( self ):
@@ -86,22 +86,25 @@ class ConnectionToServer():
     def __init__( self, server_address, filename):
         self.server_address= server_address
         self.filename      = filename
+        self.id            = 0
         self.conn          = socket(AF_INET, SOCK_DGRAM)
+        
 
     def connect_to_server( self ):
         self.send_pkt_syn()
         self.wait_for_syn_ack()
 
     def send_pkt_syn( self ):    
-        pkt = make_pkt( seq_number=12345, SYN=1 )
+        pkt = make_pkt( seq_number=12345, connection_id=self.id, SYN=1 )
         self.send_pkt( pkt )
     
     def wait_for_syn_ack( self ):
-        data, _ = self.conn.recvfrom(524)           
+        data, addr = self.conn.recvfrom(524)           
         pkt = unpack( data )
 
         if( pkt['ACK'] and pkt['SYN'] ):
-            self.server_address = ( self.server_address[0], int( pkt['data'] ) ) 
+            self.server_address = addr
+            self.id             = pkt['connection_id']
             print('Received ack and syn.')
         else:
             print('Not received ack and syn.')
@@ -115,7 +118,7 @@ class ConnectionToServer():
             while( True ):
                 text = file.read(512)
                 if( not text ): break
-                pkt = make_pkt( data=text )
+                pkt = make_pkt( connection_id=self.id, data=text )
                 self.send_pkt( pkt )
                 self.wait_for_ack_to( pkt )
 
