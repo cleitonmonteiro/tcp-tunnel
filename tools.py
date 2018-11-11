@@ -15,9 +15,9 @@ def unpack( bytes_data ):
         'seq_number'    : int.from_bytes( bytes_data[:4], byteorder ),
         'ack_number'    : int.from_bytes( bytes_data[4:8], byteorder ),
         'connection_id' : int.from_bytes( bytes_data[8:10], byteorder ),
-        'ACK'         :  isACK( bytes_data ),
-        'SYN'         :  isSYN( bytes_data ),
-        'FIN'         :  isFIN( bytes_data ),
+        'ACK'           :  is_ack( bytes_data ),
+        'SYN'           :  is_syn( bytes_data ),
+        'FIN'           :  is_fin( bytes_data ),
         'data'          : bytes_data.decode( 'utf-8' )
     }
 
@@ -34,25 +34,25 @@ def bytes_options( ACK, SYN, FIN ):
     if( ACK ):
         return bytes(c_short(4))
 
-def isACK( bytes_data ):
+def is_ack( bytes_data ):
     if( int.from_bytes( bytes_data[10:12], byteorder ) >= 4 ):
         return 1
     
     return 0
 
-def isSYN( bytes_data ):
+def is_syn( bytes_data ):
     if( int.from_bytes( bytes_data[10:12], byteorder ) >= 2 ):
         return 1
     
     return 0
 
-def isFIN( bytes_data ):
+def is_fin( bytes_data ):
     if( int.from_bytes( bytes_data[10:12], byteorder ) >= 1 ):
         return 1
     
     return 0
 
-def isACK_of( pkt, previous_pkt ):
-    if( pkt['ack_number']-1 == previous_pkt['seq_number'] ):
+def is_ack_of( ack_number, seq_number ):
+    if( ack_number - 1 == seq_number ):
         return True
     return False

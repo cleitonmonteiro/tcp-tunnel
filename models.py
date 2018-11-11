@@ -1,6 +1,6 @@
-from socket     import socket, AF_INET, SOCK_DGRAM
-from tools      import make_pkt, unpack, isACK_of
-from threading  import Thread, Event
+from socket    import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR
+from tools     import make_pkt, unpack, is_ack_of
+from threading import Thread, Event
 
 
 class HandleClient( Thread ):
@@ -15,6 +15,7 @@ class HandleClient( Thread ):
 
     def run( self ):
         self.conn = socket( AF_INET, SOCK_DGRAM )
+        self.conn.setsockopt( SOL_SOCKET, SO_REUSEADDR, 1)
         self.conn.bind( ( "", self.udp_port ) )
 
         self.send_pkt_syn_ack()
@@ -27,7 +28,7 @@ class HandleClient( Thread ):
             data, _          = self.conn.recvfrom( 524 )
             pkt = unpack( data )          
             
-            if( isFIN and isACK_of( pkt , pkt_FIN ) ):
+            if( isFIN and is_ack_of( pkt['ack_number'] , pkt_FIN['seq_number'] ) ):
                 file.close()
                 break
     
@@ -40,8 +41,7 @@ class HandleClient( Thread ):
                 self.send_pkt( pkt )
             
             previous_pkt = pkt
-        
-        self.close()
+
     
     def send_pkt_syn_ack( self ):    
         pkt = make_pkt( seq_number=4321, ack_number=12346, connection_id=self.client_id, SYN=1, ACK=1 )
@@ -76,6 +76,7 @@ class HandleConnection( Thread ):
         client_id           = 1
         udp_port_client     = 5000
         self.sock           = socket( AF_INET, SOCK_DGRAM )
+        self.sock.setsockopt( SOL_SOCKET, SO_REUSEADDR, 1)
         self.sock.bind( ( "", self.udp_port ) )
         
         while( not self.close_connection.is_set() ):
@@ -90,7 +91,6 @@ class HandleConnection( Thread ):
             client_id       += 1
             udp_port_client += 1
 
-        self.close_all_connections()
     
     def close_all_connections( self ):
         pass
@@ -103,6 +103,7 @@ class ConnectionToServer():
         self.filename      = filename
         self.id            = 0
         self.conn          = socket(AF_INET, SOCK_DGRAM)
+        self.conn.setsockopt( SOL_SOCKET, SO_REUSEADDR, 1)
 
     def connect_to_server( self ):
         self.send_pkt_syn()
@@ -140,7 +141,7 @@ class ConnectionToServer():
         data, _ = self.conn.recvfrom( 524 )           
         pkt = unpack( data )
 
-        if( pkt['ACK'] and isACK_of( pkt, package ) ):
+        if( pkt['ACK'] and is_ack_of( pkt['ack_number'], package['seq_number'] ) ):
             print('Received ack to pkt: ', package )
         else:
             print('Not received ack to pkt: ', package )
