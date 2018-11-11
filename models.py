@@ -103,7 +103,6 @@ class ConnectionToServer():
         self.filename      = filename
         self.id            = 0
         self.conn          = socket(AF_INET, SOCK_DGRAM)
-        
 
     def connect_to_server( self ):
         self.send_pkt_syn()

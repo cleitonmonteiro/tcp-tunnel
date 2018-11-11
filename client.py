@@ -1,8 +1,9 @@
 from sys import argv
 from models import ConnectionToServer
 
+
 try:
-    server_ip= int( argv[1] )
+    server_ip= argv[1]
     port     = int( argv[2] )
     filename = argv[3]
 except:
