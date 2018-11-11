@@ -53,12 +53,8 @@ class HandleClient( Thread ):
     
         return pkt
 
-    def send_pkt(self, pkt=None , seq_number=0, ack_number=0):
-        if( pkt ):
-            self.conn.sendto( pkt, self.address)
-        else:
-            pkt = make_pkt( seq_number=seq_number, ack_number=ack_number, connection_id=self.client_id )
-            self.conn.sendto( pkt, self.address)
+    def send_pkt(self, pkt):
+        self.conn.sendto( pkt, self.address)
 
 
 class HandleConnection( Thread ):
@@ -69,10 +65,9 @@ class HandleConnection( Thread ):
         Thread.__init__( self )
 
     def run( self ):
-        client_id   = 0
-        udp_port_client = 5000
-
-        sock         = socket( AF_INET, SOCK_DGRAM )
+        client_id      = 1
+        udp_port_client= 5000
+        sock           = socket( AF_INET, SOCK_DGRAM )
         sock.bind( ( "", self.udp_port ) )
         
         while( True ):
@@ -112,13 +107,9 @@ class ConnectionToServer():
             print('Not received ack and syn.')
             self.wait_for_syn_ack()
 
-    def send_pkt(self, pkt=None , seq_number=0, ack_number=0):
-        if( pkt ):
-            self.conn.sendto( pkt, self.server_address)
-        else:
-            pkt = make_pkt( seq_number=seq_number, ack_number=ack_number )
-            self.conn.sendto( pkt, self.server_address)
-
+    def send_pkt(self, pkt):
+        self.conn.sendto( pkt, self.server_address)
+        
     def send_file( self ):        
         with open( self.filename ) as file:
             while( True ):
