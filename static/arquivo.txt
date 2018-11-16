@@ -1,0 +1,45 @@
+A atual capacidade computacional tem possibilitado o desenvolvimento constante de ferramentas
+de apoio à melhoria contínua dos processos industriais, onde as Redes Neurais Artificiais 
+(RNAs)
+merecem especial destaque. Diante disso, o presente artigo tem como objetivo apresentar uma
+revisão bibliográfica acerca dos principais conceitos, características e princípios 
+relacionados às
+RNAs, com enfoque em suas aplicações práticas. É possível identificar três classes de 
+arquitetura de
+redes neurais fundamentalmente diferentes: redes alimentadas adiante com camada única, redes
+alimentadas diretamente com múltiplas camadas e redes recorrentes, sendo sua definição de
+fundamental importância para a eficiência do processo ao qual se destina. O processo de
+aprendizagem de uma RNA pode ocorrer de duas maneiras distintas: aprendizado supervisionado e
+aprendizado não supervisionado, tendo como principal diferença a presença ou não de um
+supervisor externo. Uma das principais vantagens da RNA é a capacidade de aprender e 
+generalizar,
+ou seja, produzir saídas adequadas para entradas inexistentes durante o processo de 
+aprendizagem.
+Em termos práticos a aplicação de uma RNA não ocorre de maneira simples, uma vez que,
+inúmeros problemas podem ocorrer durante o processo de implementação. Assim, pesquisas
+constantes são necessárias a fim de se chegar a uma arquitetura computacional que possibilite
+ampliar as atividades de modelagem, simulação e controle.
+Palavras-chave: cérebro humano; inteligência artificial; neurônios; pesos sinápticos.
+Abstract
+The current computing power has enabled the constant development of tools to support 
+continuous
+improvement of industrial processes, where the Artificial Neural Networks (ANN) deserves 
+special
+focus. Therefore, this article aims to present a bibliographic review on the main concepts, 
+features
+and principles related to ANNs, focusing on its practical applications. It is possible to 
+identify three
+classes of architecture of neural networks fundamentally different: networks fed forward with 
+single
+layer, networks fed directly with multiple layers and recurrent networks, being its definition 
+of
+fundamental importance for the efficiency of the process to which it is intended. The learning
+process of ANN can occur in two distinct ways: supervised learning and unsupervised learning,
+having as main difference the presence or absence of an external supervisor. One of the main
+advantages of ANN is the ability to learn and generalize, ie, produce appropriate outputs for
+nonexistent entries during the learning process. In practical terms, the application of an ANN 
+does
+not occur of simple manner, since several problems may occur during the deployment process.
+Thus, researches constants are needed in order to reach a computing architecture that enables
+expanding the activities of modeling, simulation and control.
+Key-words: human brain; artificial intelligence; neurons; synaptic weights.
