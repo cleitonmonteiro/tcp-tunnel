@@ -11,7 +11,7 @@ def make_pkt( seq_number=0, ack_number=0, connection_id=0, ACK=0, SYN=0, FIN=0, 
         bytes( c_int( ack_number ) ) + \
         bytes( c_short( connection_id ) ) + \
         bytes_options( ACK, SYN, FIN ) + \
-        data.encode( 'utf-8' )
+        data.encode( 'utf-8' ).strip()
 
 def unpack( bytes_data ):
     '''
@@ -26,6 +26,14 @@ def unpack( bytes_data ):
         'FIN'           :  is_fin( bytes_data ),
         'data'          : bytes_data.decode( 'utf-8' )
     }
+
+def show_pkt( pkt ):
+    pkt = unpack(pkt)
+    print( list(pkt.values())[:-1], end=" - " )
+    if( pkt['data'] ):
+        print( "data" )
+    else:
+        print( "empty" )
 
 def corrupt_pkt( pkt ):
     '''

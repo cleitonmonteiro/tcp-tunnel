@@ -1,5 +1,5 @@
 from socket    import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR
-from tools     import make_pkt, unpack, is_ack_of
+from tools     import make_pkt, unpack, is_ack_of, show_pkt
 from threading import Thread, Event
 
 
@@ -12,8 +12,11 @@ class HandleClient( Thread ):
         self.address         = address    
         self.udp_port        = udp_port
         self.file_dir        = file_dir
+        self.seq_num         = 4321
+        self.ack_num         = 12346
         self.close_connection= Event()  
-        self.window          = TransferWindow()  
+        self.window          = TransferWindow()
+        self.data_to_send    = []  
         Thread.__init__( self )
 
     def run( self ):
@@ -24,31 +27,48 @@ class HandleClient( Thread ):
         self.send_pkt_syn_ack()
 
         file = open( self.file_dir + str( self.client_id ) + ".file" ,"w" )
-        previous_pkt =  pkt_FIN = {}
+        pkt_FIN = {}
         isFIN = False
 
         while( not self.close_connection.is_set() ):
-            data, _          = self.conn.recvfrom( 524 )
-            pkt = unpack( data )          
+            
+            data, _ = self.conn.recvfrom( 524 )
+            show_pkt(data)
+            pkt     = unpack( data )        
+              
             
             if( isFIN and is_ack_of( pkt['ack_number'] , pkt_FIN['seq_number'] ) ):
                 file.close()
                 break
-    
+
             if( pkt['FIN'] ):
                 isFIN = True
                 pkt_FIN = self.close_tcp_connection()
             else:
-                file.write( pkt['data'] )
-                pkt = make_pkt(seq_number=666, ACK=1, data="RECEIVED")
-                self.send_pkt( pkt )
+                if(self.duplicate_ack( pkt ) ):
+                    self.send_pkt( self.data_to_send[-1] )
+                else:
+                    self.window.buff.append( pkt )
+                    file.write( pkt['data'] )
+                    self.seq_num = pkt['ack_number']
+                    self.ack_num = pkt['seq_number'] + 12 + len(pkt['data'])
+                    pkt = make_pkt(seq_number=self.seq_num, ack_number=self.ack_num, connection_id=self.client_id, ACK=1, data="RECEIVED")
+                    self.data_to_send.append(pkt)
+                    self.send_pkt( pkt )
             
-            previous_pkt = pkt
+            
+
+    def duplicate_ack( self, pkt ):
+        if(pkt['seq_number'] == self.data_to_send[-1]['ack_number']):
+            return False
+        return True
+        
 
     def send_pkt_syn_ack( self ):    
-        pkt = make_pkt( seq_number=4321, ack_number=12346, connection_id=self.client_id, SYN=1, ACK=1 )
+        pkt = make_pkt( seq_number=self.seq_num, ack_number=self.ack_num, connection_id=self.client_id, SYN=1, ACK=1 )
         self.send_pkt( pkt )
-    
+        #self.window.buff.append(pkt)
+
     def close_tcp_connection( self ):
         pkt = make_pkt( connection_id=self.client_id, ACK=1)
         self.send_pkt( pkt )
@@ -86,7 +106,6 @@ class HandleConnection( Thread ):
         while( not self.close_connection.is_set() ):
             data, addr = self.sock.recvfrom( 524 )
             pkt = unpack( data )
-            print( "Received : ", pkt )
             
             if( not pkt['SYN'] ):
                 continue
@@ -111,6 +130,7 @@ class ConnectionToServer():
         self.server_address= server_address
         self.filename      = filename
         self.seq_num       = 12345
+        self.ack_num       = 0
         self.id            = 0
         self.conn          = socket( AF_INET, SOCK_DGRAM )
         self.window        = TransferWindow()
@@ -133,6 +153,8 @@ class ConnectionToServer():
             if( pkt['ACK'] and pkt['SYN'] and is_ack_of( pkt['ACK'], self.seq_num) ):
                 self.set_connection_options( pkt, addr )
                 print('Received ack and syn.')
+                self.ack_num = pkt['seq_number'] + 1
+                self.seq_num = pkt['ack_number']
                 break
             else:
                 print('Not received ack and syn.')
@@ -143,8 +165,9 @@ class ConnectionToServer():
         self.seq_num        = pkt_syn_ack['ACK']
         self.ack_num        = pkt_syn_ack['seq_number'] + 1
     
-    def send_pkt(self, pkt):
-        self.conn.sendto( pkt, self.server_address)
+    def send_pkt( self, pkt ):
+        self.conn.sendto( pkt, self.server_address )
+        show_pkt( pkt )
     
     def update_window( self, data ):
         self.window.next_seq_num += 1
@@ -152,13 +175,12 @@ class ConnectionToServer():
 
     def send_initial_pkt( self ):
         text = self.file.read( 512 )
-        pkt  = make_pkt( self.seq_num, self.ack_num, self.id, ACK=1 , data=text)
+        pkt  = make_pkt( self.seq_num, self.ack_num, self.id, ACK=1 , data=text )
         self.send_pkt( pkt )
         self.window.buff.append( pkt )
         # start_time()
         self.update_window( text )
-        
-    
+          
     def send_file( self ):
         self.file = open( self.filename )
         self.send_initial_pkt()
