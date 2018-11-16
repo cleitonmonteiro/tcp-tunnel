@@ -114,6 +114,7 @@ class ConnectionToServer():
         self.id            = 0
         self.conn          = socket( AF_INET, SOCK_DGRAM )
         self.window        = TransferWindow()
+        self.recved_acks   = []
         self.conn.setsockopt( SOL_SOCKET, SO_REUSEADDR, 1)              
 
     def connect_to_server( self ):
@@ -145,20 +146,27 @@ class ConnectionToServer():
     def send_pkt(self, pkt):
         self.conn.sendto( pkt, self.server_address)
     
+    def update_window( self, data ):
+        self.window.next_seq_num += 1
+        self.seq_num += 12 + len( data )
+
     def send_initial_pkt( self ):
         text = self.file.read( 512 )
         pkt  = make_pkt( self.seq_num, self.ack_num, self.id, ACK=1 , data=text)
         self.send_pkt( pkt )
-        self.window.buffer.append( pkt )
+        self.window.buff.append( pkt )
         # start_time()
-        self.window.next_seq_num += 1
-        self.seq_num += 12 + len( text )
+        self.update_window( text )
+        
     
     def send_file( self ):
         self.file = open( self.filename )
         self.send_initial_pkt()
 
         while( True ):
+            
+            self.recv_ack_pkt()
+
             if( self.window.can_send_pkt() ):
                 text = self.file.read( 512 )
 
@@ -167,25 +175,43 @@ class ConnectionToServer():
 
                 pkt = make_pkt( self.seq_num, self.ack_num, self.id, data=text )
                 self.send_pkt( pkt )
-                self.window.buffer.append( pkt )
+                self.window.buff.append( pkt )
                 
                 if( self.window.base_equal_next_seq_num() ):
                     # start_time()
                     pass
 
-                self.window.next_seq_num += 1
-                # self.wait_for_ack_to( pkt )
+                self.update_window( text )
+
         self.file.close()
 
-    def wait_for_ack_to( self, package ):
-        data, _ = self.conn.recvfrom( 524 )           
-        pkt = unpack( data )
+    def recv_ack_pkt( self ):
+        
+        def duplicate_ack( pkt ):
+            if( self.recved_acks.count( pkt['ACK'] ) == 3):
+                return True
+            return False
 
-        if( pkt['ACK'] and is_ack_of( pkt['ack_number'], package['seq_number'] ) ):
-            print('Received ack to pkt: ', package )
-        else:
-            print('Not received ack to pkt: ', package )
-            self.wait_for_ack_to( package )
+        def index_pkt_ack( pkt ):
+            for i, p in enumerate( self.window.buff ):
+                if( p['ACK'] and is_ack_of( pkt['ack_number'], p['seq_number'] )):
+                    self.recved_acks.append(p['ACK'])
+                    return i
+
+        data, _ = self.conn.recvfrom( 524 )
+        pkt     = unpack( data )
+        index   = index_pkt_ack( pkt )
+
+
+        if( index ):
+            if( duplicate_ack( pkt ) ):
+                self.resend_pkt( index )
+            else:
+                self.window.base = index
+
+    def resend_pkt( self, index ):
+        pkt = self.window.buff[index]
+        self.send_pkt( pkt )
         
     def close( self ):
         pkt = make_pkt( FIN=1 )
@@ -206,14 +232,15 @@ class ConnectionToServer():
 
 class TransferWindow:
 
-    def __init__( self, next_seq_num=1, base=1, cwnd=512, buffer=[] ):
+    def __init__( self, next_seq_num=1, base=1, cwnd=512, buff=[] ):
         self.next_seq_num = next_seq_num
         self.base         = base
         self.cwnd         = cwnd
-        self.buffer       = buffer
+        self.buff         = buff
     
     def base_equal_next_seq_num( self ):
         return self.base == self.next_seq_num
 
     def can_send_pkt( self ):
         return self.next_seq_num < self.base + self.cwnd
+
