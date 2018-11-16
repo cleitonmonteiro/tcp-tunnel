@@ -4,7 +4,9 @@ from threading import Thread, Event
 
 
 class HandleClient( Thread ):
-    
+    '''
+    Handle client connection
+    '''
     def __init__( self, client_id, address, udp_port , file_dir ):
         self.client_id       = client_id
         self.address         = address    
@@ -64,7 +66,9 @@ class HandleClient( Thread ):
 
 
 class HandleConnection( Thread ):
-    
+    '''
+    Handle all client connections
+    '''    
     def __init__( self, udp_port, filer_dir, clients):
         self.udp_port        = udp_port
         self.file_dir        = filer_dir
@@ -100,7 +104,9 @@ class HandleConnection( Thread ):
 
 
 class ConnectionToServer():
-
+    '''
+    pass
+    '''
     def __init__( self, server_address, filename):
         self.server_address= server_address
         self.filename      = filename
