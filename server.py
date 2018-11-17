@@ -3,7 +3,7 @@ from models_servidor import HandleConnection
 
 try:
     port     = 9000#int( argv[1] )
-    file_dir = "/home/overcore/MEGAsync/Modelos/Python/tcp-tunnel/static/" #argv[2]
+    file_dir = "./static/" #argv[2]
 except:
     print('d Usage : {} <port> <file_dir>'.format( argv[0] ))
     exit(-1)

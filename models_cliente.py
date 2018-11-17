@@ -21,6 +21,41 @@ class ConnectionToServer():
         self.send_pkt_syn()
         self.wait_for_syn_ack()
 
+    def send_file( self ):
+        self.file = open( self.filename, "rb")
+        self.send_initial_pkt()
+
+        while( True ):
+
+            self.recv_ack_pkt()
+            
+            if( self.window.can_send_pkt() ):
+                text = self.file.read( 512 )
+                if( not text ):
+                    break
+
+                pkt = make_pkt( self.seq_num, connection_id=self.id, data=text )
+                self.send_pkt( pkt )
+                pkt = unpack( pkt )
+                self.window.buff.append( pkt )
+                
+                if( self.window.base_equal_next_seq_num() ):
+                    # start_time()
+                    pass
+
+                self.update_window( )
+
+
+        self.file.close()
+
+    def close( self ):
+        pkt = make_pkt( self.seq_num, self.ack_num, connection_id=self.id, FIN=1 )
+        self.send_pkt( pkt )
+        pkt = unpack( pkt )
+        self.window.buff.append( pkt )
+        self.wait_ack_of_fin()
+        self.wait_for_fin()
+
     def send_pkt_syn( self ):
         pkt = make_pkt( seq_number=self.seq_num, connection_id=self.id, SYN=1 )
         self.send_pkt( pkt )
@@ -54,8 +89,8 @@ class ConnectionToServer():
     
     def update_window( self):
         self.window.next_seq_num += 1
-        self.ack_num = self.window.buff[-1]['seq_number'] + 1
-        self.seq_num += 12 + len( self.window.buff[-1]['data'] )
+        # self.ack_num = self.window.buff[-1]['seq_number'] + 1
+        self.seq_num += len_pkt( self.window.buff[-1] )
 
     def send_initial_pkt( self ):
         text = self.file.read( 512 )
@@ -65,80 +100,42 @@ class ConnectionToServer():
         self.window.buff.append( pkt )
         # start_time()
         self.update_window( )
-                  
-    def send_file( self ):
-        self.file = open( self.filename, "rb")
-        self.send_initial_pkt()
-
-        while( True ):
-            
-
-            if( self.window.can_send_pkt() ):
-                text = self.file.read( 512 )
-                if( not text ):
-                    break
-
-                pkt = make_pkt( self.seq_num, self.ack_num, self.id, data=text )
-                self.send_pkt( pkt )
-                pkt = unpack( pkt )
-                self.window.buff.append( pkt )
-                
-                if( self.window.base_equal_next_seq_num() ):
-                    # start_time()
-                    pass
-
-                self.update_window( )
-
-            self.recv_ack_pkt()
-
-        self.file.close()
 
     def recv_ack_pkt( self ):
+        # print( self.window )
         
         def duplicate_ack( pkt ):
-            
             if( self.recved_acks.count( pkt['ack_number'] ) == 4):
                 return True
             return False
 
         def index_pkt_ack( pkt ):
             for i, p in enumerate( self.window.buff ):
-                if( p['ACK'] and is_ack_of( pkt, p )):
+                if( pkt['ACK'] and is_ack_of( pkt, p )):
                     self.recved_acks.append(p['ack_number'])
-                    return i
+                    return i + 1
         
         data, _ = self.conn.recvfrom( 524 )
         print( "[<==] ",end=" ")
         show_pkt(data)
         pkt     = unpack( data )
-        index   = index_pkt_ack( pkt )
-        print(index)
-        
+        index   = index_pkt_ack( pkt )        
 
-        if( not index == None):
-            print("received ack")
+        if( index ):
             if( duplicate_ack( pkt ) ):
-                print(">>>---recebeu algo duplicado---<<<")
-                self.resend_pkt( index )
+                self.resend_pkt( index + 1 )
+                self.window.ssthresh = self.window.size*512 // 2
+                self.window.set_default()
             else:
-                self.window.base = index + 1
-                if( self.window.size_window*512 < self.window.ssthresh ):
-                    self.window.size_window *= 2
+                self.window.base = index
+                if( self.window.size*512 < self.window.ssthresh ):
+                    self.window.size *= 2
                 else:
-                    self.window.size_window += 1
-        #print(self.window)
+                    self.window.size += 1
 
     def resend_pkt( self, index ):
         pkt = self.window.buff[index]
         self.send_pkt( pkt )
-        
-    def close( self ):
-        pkt = make_pkt( self.seq_num, self.ack_num, connection_id=self.id, FIN=1 )
-        self.send_pkt( pkt )
-        pkt = unpack( pkt )
-        self.window.buff.append( pkt )
-        self.wait_ack_of_fin()
-        self.wait_for_fin()
     
     def wait_ack_of_fin( self ):
         while(True):

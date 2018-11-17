@@ -16,7 +16,7 @@ class HandleClient( Thread ):
         self.ack_num         = 12346
         self.close_connection= Event()  
         self.window          = TransferWindow()
-        self.data_to_send    = []  
+        self.data_to_send_acks    = []  
         Thread.__init__( self )
 
     def run( self ):
@@ -47,22 +47,22 @@ class HandleClient( Thread ):
                 pkt_FIN = self.close_tcp_connection()
             else:
                 if(self.duplicate_ack( pkt ) ):
-                    make_pkt(self.data_to_send[-1])
-                    self.send_pkt( self.data_to_send[-1] )
+                    make_pkt(self.data_to_send_acks[-1])
+                    self.send_pkt( self.data_to_send_acks[-1] )
                 else:
                     self.window.buff.append( pkt )
                     file.write( pkt['data'] )
                     self.seq_num = pkt['ack_number']
-                    self.ack_num = pkt['seq_number'] + 12 + len(pkt['data'])
+                    self.ack_num = pkt['seq_number'] + len_pkt( pkt )
                     pkt = make_pkt(seq_number=self.seq_num, ack_number=self.ack_num, connection_id=self.client_id, ACK=1)
                     self.send_pkt( pkt )
                     pkt = unpack( pkt )
-                    self.data_to_send.append(pkt)
+                    self.data_to_send_acks.append(pkt)
                     
     def duplicate_ack( self, pkt ):
-        if(not self.data_to_send):
+        if(not self.data_to_send_acks):
             return False
-        if(pkt['seq_number'] == self.data_to_send[-1]['ack_number']):
+        if(pkt['seq_number'] == self.data_to_send_acks[-1]['ack_number']):
             return False
         return True
         
