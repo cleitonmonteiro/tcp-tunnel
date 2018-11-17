@@ -1,6 +1,7 @@
 from socket    import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR
 from tools     import make_pkt, unpack, is_ack_of, show_pkt, len_pkt,TransferWindow
 from threading import Thread, Event
+from os import popen,system
 
 class ConnectionToServer():
     '''
@@ -23,9 +24,28 @@ class ConnectionToServer():
         self.send_pkt_syn()
         self.wait_for_syn_ack()
 
+
+    
     def send_file( self ):
+        def print_parts_file( number_parts, len_total ):
+            system("clear")
+            print("y Sending file...")
+            aux = "#"*number_parts
+            aux2 = " "*(len_total-number_parts)
+            print("["+aux+ aux2 +"]")
+            
+
+        len_archive = popen("du -hsb " + self.filename).read().split("\t")[0]
+        print(len_archive)
+        print(self.filename)
+        len_part = int(len_archive)//60
+        
         self.file = open( self.filename, "rb")
         self.send_initial_pkt()
+
+        count_part = 512
+
+
 
         while( True ):
 
@@ -33,6 +53,10 @@ class ConnectionToServer():
             
             if( self.window.can_send_pkt() ):
                 text = self.file.read( 512 )
+                
+                count_part += len(text)
+                print_parts_file( count_part//len_part, int(len_archive)//len_part)
+                
                 if( not text ):
                     break
 
@@ -66,8 +90,8 @@ class ConnectionToServer():
     def wait_for_syn_ack( self ):
         while( True ):
             data, addr = self.conn.recvfrom( 524 )
-            print("[<==] ",end=" ")
-            show_pkt(data)
+            #print("[<==] ",end=" ")
+            #show_pkt(data)
             pkt = unpack( data )
             
             if( pkt['ACK'] and pkt['SYN'] ):
@@ -87,8 +111,8 @@ class ConnectionToServer():
     
     def send_pkt( self, pkt ):
         self.conn.sendto( pkt, self.server_address )
-        print("[==>] ",end=" ")
-        show_pkt( pkt )
+        #print("[==>] ",end=" ")
+        #show_pkt( pkt )
     
     def update_window( self):
         self.window.next_seq_num += 1
@@ -133,8 +157,8 @@ class ConnectionToServer():
                 pkt = make_pkt( p['seq_number'], p['ack_number'], p['connection_id'], data=p['data'])
                 self.send_pkt( pkt )
 
-        print( "[<==] ",end=" ")
-        show_pkt(data)
+        #print( "[<==] ",end=" ")
+        #show_pkt(data)
         pkt     = unpack( data )
         index   = index_pkt_ack( pkt )        
 
@@ -158,8 +182,8 @@ class ConnectionToServer():
     def wait_ack_of_fin( self ):
         while(True):
             data, _ = self.conn.recvfrom( 524 )           
-            print("[<==] ",end=" ")
-            show_pkt( data )
+            #print("[<==] ",end=" ")
+            #show_pkt( data )
             pkt = unpack( data )
 
 
@@ -178,8 +202,8 @@ class ConnectionToServer():
     def wait_for_fin( self ):
         while(True):
             data, _ = self.conn.recvfrom( 524 )           
-            print("[<==] ",end=" ")
-            show_pkt( data )
+            #print("[<==] ",end=" ")
+            #show_pkt( data )
             pkt = unpack( data )
 
             if( pkt['FIN'] ):
