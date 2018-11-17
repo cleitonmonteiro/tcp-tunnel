@@ -1,11 +1,11 @@
 from sys import argv
-from models import ConnectionToServer
+from models_cliente import ConnectionToServer
 
 
 try:
-    server_ip= argv[1]
-    port     = int( argv[2] )
-    filename = argv[3]
+    server_ip= "127.0.0.1"#argv[1]
+    port     = 9000#int( argv[2] )
+    filename = "/home/overcore/MEGAsync/Modelos/Python/tcp-tunnel/static/arquivo.txt"#argv[3]
 except:
     print('d Usage : {} <server_hostname_or_ip> <port> <filename>'.format( argv[0] ))
     exit(-1)

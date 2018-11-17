@@ -1,10 +1,9 @@
 from sys import argv
-from models import HandleConnection
-
+from models_servidor import HandleConnection
 
 try:
-    port     = int( argv[1] )
-    file_dir = argv[2]
+    port     = 9000#int( argv[1] )
+    file_dir = "/home/overcore/MEGAsync/Modelos/Python/tcp-tunnel/static/" #argv[2]
 except:
     print('d Usage : {} <port> <file_dir>'.format( argv[0] ))
     exit(-1)

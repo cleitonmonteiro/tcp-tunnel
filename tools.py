@@ -2,7 +2,7 @@ from ctypes import c_int, c_short
 from sys import byteorder
 
 
-def make_pkt( seq_number=0, ack_number=0, connection_id=0, ACK=0, SYN=0, FIN=0, data='' ):
+def make_pkt( seq_number=0, ack_number=0, connection_id=0, ACK=0, SYN=0, FIN=0, data=b'' ):
     '''
     make
     '''
@@ -11,7 +11,7 @@ def make_pkt( seq_number=0, ack_number=0, connection_id=0, ACK=0, SYN=0, FIN=0, 
         bytes( c_int( ack_number ) ) + \
         bytes( c_short( connection_id ) ) + \
         bytes_options( ACK, SYN, FIN ) + \
-        data.encode( 'utf-8' ).strip()
+        data
 
 def unpack( bytes_data ):
     '''
@@ -24,7 +24,7 @@ def unpack( bytes_data ):
         'ACK'           :  is_ack( bytes_data ),
         'SYN'           :  is_syn( bytes_data ),
         'FIN'           :  is_fin( bytes_data ),
-        'data'          : bytes_data.decode( 'utf-8' )
+        'data'          : bytes_data[12:]
     }
 
 def show_pkt( pkt ):
@@ -55,12 +55,14 @@ def bytes_options( ACK, SYN, FIN ):
     
     if( ACK ):
         return bytes(c_short(4))
+    
+    return bytes(c_short(0))
 
 def is_ack( bytes_data ):
     '''
     pass
     '''
-    if( int.from_bytes( bytes_data[10:12], byteorder ) >= 4 ):
+    if( bin(int.from_bytes( bytes_data[10:12], byteorder ))[-3] == "1" ):
         return 1
     
     return 0
@@ -69,7 +71,7 @@ def is_syn( bytes_data ):
     '''
     pass
     '''
-    if( int.from_bytes( bytes_data[10:12], byteorder ) >= 2 ):
+    if( bin(int.from_bytes( bytes_data[10:12], byteorder ))[-2] == "1" ):
         return 1
     
     return 0
@@ -78,7 +80,7 @@ def is_fin( bytes_data ):
     '''
     pass
     '''
-    if( int.from_bytes( bytes_data[10:12], byteorder ) >= 1 ):
+    if( bin(int.from_bytes( bytes_data[10:12], byteorder ))[-1] == "1" ):
         return 1
     
     return 0
@@ -90,3 +92,24 @@ def is_ack_of( ack_number, seq_number ):
     if( ack_number - 1 == seq_number ):
         return True
     return False
+
+def len_pkt( pkt ):
+    '''
+    '''
+    if(type(pkt) is bytes):
+        return len(pkt)
+    return 12 + len(pkt['data'])
+
+class TransferWindow:
+    
+    def __init__( self, next_seq_num=1, base=1, cwnd=512, buff=[] ):
+        self.next_seq_num = next_seq_num
+        self.base         = base
+        self.cwnd         = cwnd
+        self.buff         = buff
+    
+    def base_equal_next_seq_num( self ):
+        return self.base == self.next_seq_num
+
+    def can_send_pkt( self ):
+        return self.next_seq_num < self.base + self.cwnd
