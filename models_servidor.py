@@ -55,14 +55,10 @@ class HandleClient( Thread ):
                     self.seq_num = pkt['ack_number']
                     self.ack_num = pkt['seq_number'] + 12 + len(pkt['data'])
                     pkt = make_pkt(seq_number=self.seq_num, ack_number=self.ack_num, connection_id=self.client_id, ACK=1)
-                    print("[==>] ",end=" ")
                     self.send_pkt( pkt )
-                    show_pkt(pkt)
                     pkt = unpack( pkt )
                     self.data_to_send.append(pkt)
                     
-            
-
     def duplicate_ack( self, pkt ):
         if(not self.data_to_send):
             return False
@@ -70,7 +66,6 @@ class HandleClient( Thread ):
             return False
         return True
         
-
     def send_pkt_syn_ack( self ):    
         pkt = make_pkt( seq_number=self.seq_num, ack_number=self.ack_num, connection_id=self.client_id, SYN=1, ACK=1 )
         self.send_pkt( pkt )
@@ -86,6 +81,8 @@ class HandleClient( Thread ):
         return pkt
 
     def send_pkt(self, pkt):
+        print("[==>] ",end=" ")
+        show_pkt(pkt)
         self.conn.sendto( pkt, self.address)
 
     def close( self ):
@@ -112,6 +109,8 @@ class HandleConnection( Thread ):
         
         while( not self.close_connection.is_set() ):
             data, addr = self.sock.recvfrom( 524 )
+            print("[<==] ",end=" ")
+            show_pkt(data)
             pkt = unpack( data )
             
             if( not pkt['SYN'] ):
@@ -124,6 +123,5 @@ class HandleConnection( Thread ):
             client_id       += 1
             udp_port_client += 1
 
-    
     def close_all_connections( self ):
         pass

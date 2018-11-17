@@ -32,7 +32,7 @@ class ConnectionToServer():
             show_pkt(data)
             pkt = unpack( data )
             
-            if( pkt['ACK'] and pkt['SYN'] and is_ack_of( pkt['ack_number'], self.seq_num) ):
+            if( pkt['ACK'] and pkt['SYN'] ):
                 self.set_connection_options( pkt, addr )
                 print('Received ack and syn.')
                 self.ack_num = pkt['seq_number'] + 1
@@ -65,15 +65,13 @@ class ConnectionToServer():
         self.window.buff.append( pkt )
         # start_time()
         self.update_window( )
-        
-          
+                  
     def send_file( self ):
         self.file = open( self.filename, "rb")
         self.send_initial_pkt()
 
         while( True ):
             
-            self.recv_ack_pkt()
 
             if( self.window.can_send_pkt() ):
                 text = self.file.read( 512 )
@@ -91,21 +89,22 @@ class ConnectionToServer():
 
                 self.update_window( )
 
+            self.recv_ack_pkt()
+
         self.file.close()
-
-
 
     def recv_ack_pkt( self ):
         
         def duplicate_ack( pkt ):
-            if( self.recved_acks.count( pkt['ACK'] ) == 3):
+            
+            if( self.recved_acks.count( pkt['ack_number'] ) == 4):
                 return True
             return False
 
         def index_pkt_ack( pkt ):
             for i, p in enumerate( self.window.buff ):
-                if( p['ACK'] and is_ack_of( pkt['ack_number'], p['seq_number'] )):
-                    self.recved_acks.append(p['ACK'])
+                if( p['ACK'] and is_ack_of( pkt, p )):
+                    self.recved_acks.append(p['ack_number'])
                     return i
         
         data, _ = self.conn.recvfrom( 524 )
@@ -113,13 +112,21 @@ class ConnectionToServer():
         show_pkt(data)
         pkt     = unpack( data )
         index   = index_pkt_ack( pkt )
+        print(index)
         
 
-        if( index ):
+        if( not index == None):
+            print("received ack")
             if( duplicate_ack( pkt ) ):
+                print(">>>---recebeu algo duplicado---<<<")
                 self.resend_pkt( index )
             else:
-                self.window.base = index
+                self.window.base = index + 1
+                if( self.window.size_window*512 < self.window.ssthresh ):
+                    self.window.size_window *= 2
+                else:
+                    self.window.size_window += 1
+        #print(self.window)
 
     def resend_pkt( self, index ):
         pkt = self.window.buff[index]
@@ -128,8 +135,10 @@ class ConnectionToServer():
     def close( self ):
         pkt = make_pkt( self.seq_num, self.ack_num, connection_id=self.id, FIN=1 )
         self.send_pkt( pkt )
-        #self.wait_ack_of_fin()
-        #self.wait_for_fin()
+        pkt = unpack( pkt )
+        self.window.buff.append( pkt )
+        self.wait_ack_of_fin()
+        self.wait_for_fin()
     
     def wait_ack_of_fin( self ):
         while(True):
@@ -139,19 +148,17 @@ class ConnectionToServer():
             pkt = unpack( data )
 
 
-            if( pkt['ACK'] and is_ack_of(pkt['ack_number'],self.seq_num)):
+            if( pkt['ACK'] and is_ack_of(pkt,self.window.buff[-1])):
                 print('Received ACK of FIN.')
                 break
             else:
                 print('Not received ACK pkt of FIN.')
         
-
     def send_pkt_ack_for_fin( self, pkt ):
         self.window.buff.append( pkt )
         self.update_window()
         n_pkt = make_pkt( self.seq_num, self.ack_num, self.id,ACK=1 )
         self.send_pkt( n_pkt )
-
 
     def wait_for_fin( self ):
         while(True):

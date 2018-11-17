@@ -2,6 +2,30 @@ from ctypes import c_int, c_short
 from sys import byteorder
 
 
+class TransferWindow:
+    
+    def __init__( self, next_seq_num=1, base=1, size_window=512, buff=[] ):
+        self.next_seq_num = next_seq_num
+        self.base         = base
+        self.size_window  = size_window
+        self.buff         = buff
+        #self.cwnd         = 512
+        self.ssthresh     = 10000
+    
+    def base_equal_next_seq_num( self ):
+        return self.base == self.next_seq_num
+
+    def can_send_pkt( self ):
+        return self.next_seq_num < self.base + self.size_window
+    
+    def __repr__(self):
+        return  """\
+                   next_seq_num = %i
+                   base         = %i
+                   window_size  = %i
+                   ssthresh     = %i""" %(self.next_seq_num,self.base,self.size_window,self.ssthresh)
+        
+
 def make_pkt( seq_number=0, ack_number=0, connection_id=0, ACK=0, SYN=0, FIN=0, data=b'' ):
     '''
     make
@@ -85,11 +109,11 @@ def is_fin( bytes_data ):
     
     return 0
 
-def is_ack_of( ack_number, seq_number ):
+def is_ack_of( pkt , previous_pkt ):
     '''
     ack of
     '''
-    if( ack_number - 1 == seq_number ):
+    if( pkt['seq_number'] == previous_pkt['ack_number'] ):
         return True
     return False
 
@@ -97,19 +121,5 @@ def len_pkt( pkt ):
     '''
     '''
     if(type(pkt) is bytes):
-        return len(pkt)
-    return 12 + len(pkt['data'])
-
-class TransferWindow:
-    
-    def __init__( self, next_seq_num=1, base=1, cwnd=512, buff=[] ):
-        self.next_seq_num = next_seq_num
-        self.base         = base
-        self.cwnd         = cwnd
-        self.buff         = buff
-    
-    def base_equal_next_seq_num( self ):
-        return self.base == self.next_seq_num
-
-    def can_send_pkt( self ):
-        return self.next_seq_num < self.base + self.cwnd
+        return len(pkt) - 12
+    return len(pkt['data'])
