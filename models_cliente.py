@@ -16,6 +16,7 @@ class ConnectionToServer():
         self.window        = TransferWindow()
         self.recved_acks   = []
         self.c_rtrss_pkt   = 0
+        self.c_duplicate_pkt= 0
         self.conn.setsockopt( SOL_SOCKET, SO_REUSEADDR, 1)              
 
     def connect_to_server( self ):
@@ -56,6 +57,7 @@ class ConnectionToServer():
         self.window.buff.append( pkt )
         self.wait_ack_of_fin()
         self.wait_for_fin()
+        print("d Number of duplicate packages :", self.c_duplicate_pkt)
 
     def send_pkt_syn( self ):
         pkt = make_pkt( seq_number=self.seq_num, connection_id=self.id, SYN=1 )
@@ -141,6 +143,7 @@ class ConnectionToServer():
                 self.resend_pkt( index + 1 )
                 self.window.ssthresh = self.window.size*512 // 2
                 self.window.set_default()
+                self.c_duplicate_pkt += 1
             else:
                 self.window.base = index
                 if( self.window.size*512 < self.window.ssthresh ):
