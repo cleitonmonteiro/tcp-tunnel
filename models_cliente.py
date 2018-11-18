@@ -15,6 +15,7 @@ class ConnectionToServer():
         self.conn          = socket( AF_INET, SOCK_DGRAM )
         self.window        = TransferWindow()
         self.recved_acks   = []
+        self.c_rtrss_pkt   = 0
         self.conn.setsockopt( SOL_SOCKET, SO_REUSEADDR, 1)              
 
     def connect_to_server( self ):
@@ -91,6 +92,9 @@ class ConnectionToServer():
         self.window.next_seq_num += 1
         # self.ack_num = self.window.buff[-1]['seq_number'] + 1
         self.seq_num += len_pkt( self.window.buff[-1] )
+        if( self.seq_num > 102400):
+            self.seq_num = 0
+            # self.ack_num = 0
 
     def send_initial_pkt( self ):
         text = self.file.read( 512 )
@@ -114,8 +118,19 @@ class ConnectionToServer():
                 if( pkt['ACK'] and is_ack_of( pkt, p )):
                     self.recved_acks.append(p['ack_number'])
                     return i + 1
-        
+        # self.conn.settimeout( 0.1 )
+        # try:
         data, _ = self.conn.recvfrom( 524 )
+        # except:
+        #     self.c_rtrss_pkt += 1
+        # self.conn.settimeout(None)
+        
+        if ( self.c_rtrss_pkt == 5):
+            print('===== Start retranmission')
+            for p in self.window.buff[self.window.base:self.window.next_seq_num]:
+                pkt = make_pkt( p['seq_number'], p['ack_number'], p['connection_id'], data=p['data'])
+                self.send_pkt( pkt )
+
         print( "[<==] ",end=" ")
         show_pkt(data)
         pkt     = unpack( data )
@@ -145,7 +160,7 @@ class ConnectionToServer():
             pkt = unpack( data )
 
 
-            if( pkt['ACK'] and is_ack_of(pkt,self.window.buff[-1])):
+            if( pkt['ACK'] and is_ack_of(pkt, self.window.buff[-1])):
                 print('Received ACK of FIN.')
                 break
             else:
