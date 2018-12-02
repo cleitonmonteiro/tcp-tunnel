@@ -200,6 +200,7 @@ class ConnectionToServer():
         self.send_pkt( n_pkt )
 
     def wait_for_fin( self ):
+
         while(True):
             data, _ = self.conn.recvfrom( 524 )           
             #print("[<==] ",end=" ")

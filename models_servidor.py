@@ -37,14 +37,13 @@ class HandleClient( Thread ):
             show_pkt(data)
             pkt     = unpack( data )        
               
-            
-            if( isFIN and is_ack_of( pkt, pkt_FIN ) ):
-                file.close()
-                break
 
             if( pkt['FIN'] ):
                 isFIN = True
+                file.close()
                 pkt_FIN = self.close_tcp_connection( pkt )
+                self.close_connection.set()
+                break
             else:
                 self.clear_buff( pkt )
                 if( self.duplicate_ack( pkt ) ):
