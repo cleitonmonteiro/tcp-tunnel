@@ -20,44 +20,49 @@ class HandleClient( Thread ):
         Thread.__init__( self )
 
     def run( self ):
-        self.conn = socket( AF_INET, SOCK_DGRAM )
-        self.conn.setsockopt( SOL_SOCKET, SO_REUSEADDR, 1)
-        self.conn.bind( ( "", self.udp_port ) )
+        try:
+            self.conn = socket( AF_INET, SOCK_DGRAM )
+            self.conn.setsockopt( SOL_SOCKET, SO_REUSEADDR, 1)
+            self.conn.bind( ( "", self.udp_port ) )
 
-        self.send_pkt_syn_ack()
+            self.send_pkt_syn_ack()
 
-        file = open( self.file_dir + str( self.client_id ) + ".file" ,"wb" )
-        pkt_FIN = {}
-        isFIN = False
-
-        while( not self.close_connection.is_set() ):
-            
-            data, _ = self.conn.recvfrom( 524 )
-            print("[<==] ",end=" ")
-            show_pkt(data)
-            pkt     = unpack( data )        
-              
-
-            if( pkt['FIN'] ):
-                isFIN = True
-                file.close()
-                pkt_FIN = self.close_tcp_connection( pkt )
-                self.close_connection.set()
-                break
-            else:
-                self.clear_buff( pkt )
-                if( self.duplicate_ack( pkt ) ):
-                    make_pkt(self.data_to_send_acks[-1])
-                    self.send_pkt( self.data_to_send_acks[-1] )
+            file = open( self.file_dir + str( self.client_id ) + ".file" ,"wb" )
+            while( not self.close_connection.is_set() ):
+                self.conn.settimeout(10)
+                data, _ = self.conn.recvfrom( 524 )
+                
+                if not data:
+                    self.error(file)
+                    continue
                 else:
-                    # self.window.buff.append( pkt )
-                    file.write( pkt['data'] )
-                    self.seq_num = pkt['ack_number']
-                    self.ack_num = pkt['seq_number'] + len_pkt( pkt )
-                    pkt = make_pkt(seq_number=self.seq_num, ack_number=self.ack_num, connection_id=self.client_id, ACK=1)
-                    self.send_pkt( pkt )
-                    pkt = unpack( pkt )
-                    self.data_to_send_acks.append( pkt )
+                    self.conn.settimeout(None)
+                
+                print("[<==] ",end=" ")
+                show_pkt(data)
+                pkt     = unpack( data ) 
+
+                if( pkt['FIN'] ):
+                    file.close()
+                    self.close_tcp_connection( pkt )
+                    self.close_connection.set()
+                    break
+                else:
+                    self.clear_buff( pkt )
+                    if( self.duplicate_ack( pkt ) ):
+                        make_pkt(self.data_to_send_acks[-1])
+                        self.send_pkt( self.data_to_send_acks[-1] )
+                    else:
+                        # self.window.buff.append( pkt )
+                        file.write( pkt['data'] )
+                        self.seq_num = pkt['ack_number']
+                        self.ack_num = pkt['seq_number'] + len_pkt( pkt )
+                        pkt = make_pkt(seq_number=self.seq_num, ack_number=self.ack_num, connection_id=self.client_id, ACK=1)
+                        self.send_pkt( pkt )
+                        pkt = unpack( pkt )
+                        self.data_to_send_acks.append( pkt )
+        except:
+            self.close()
 
     def clear_buff( self , pkt ):
         if ( self.data_to_send_acks and pkt['seq_number'] == 0 ):
@@ -85,16 +90,23 @@ class HandleClient( Thread ):
 
         pkt = make_pkt( connection_id=self.client_id, FIN=1)
         self.send_pkt( pkt )
-    
-        return unpack( pkt )
 
     def send_pkt(self, pkt):
         print("[==>] ",end=" ")
         show_pkt(pkt)
         self.conn.sendto( pkt, self.address)
 
+    def error(self, file):
+        file.close()
+        file = open( self.file_dir + str( self.client_id ) + ".file" ,"wb" )
+        file.write('ERROR\n')
+        file.close()
+        self.close_connection.set()
+
     def close( self ):
-        pass
+        self.close_connection.set()
+        self.conn.shutdown(0)
+        self.conn.close()
 
 
 class HandleConnection( Thread ):
@@ -109,12 +121,12 @@ class HandleConnection( Thread ):
         Thread.__init__( self )
 
     def run( self ):
-        client_id           = 1
-        udp_port_client     = 5000
-        self.sock           = socket( AF_INET, SOCK_DGRAM )
-        self.sock.setsockopt( SOL_SOCKET, SO_REUSEADDR, 1)
-        self.sock.bind( ( "", self.udp_port ) )
         try:
+            client_id           = 1
+            udp_port_client     = 5000
+            self.sock           = socket( AF_INET, SOCK_DGRAM )
+            self.sock.setsockopt( SOL_SOCKET, SO_REUSEADDR, 1)
+            self.sock.bind( ( "", self.udp_port ) )
             while( True ):
                 data, addr = self.sock.recvfrom( 524 )
                 print("[<==] ",end=" ")
@@ -134,10 +146,13 @@ class HandleConnection( Thread ):
                 client_id       += 1
                 udp_port_client += 1
         except KeyboardInterrupt:
-            pass
+            print('\nd Used Ctrl+C.')
+            print('d Closing server.')
+            self.close_all_connections()
 
     def close_all_connections( self ):
-        pass
-        # self.close_connection.set()
-        # self.sock.close()
-        # self.sock.shutdown(0)
+        for c in self.clients:
+            c.close()
+        self.close_connection.set()
+        self.sock.shutdown(0)
+        self.sock.close()

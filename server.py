@@ -11,12 +11,7 @@ except:
 clients = []
 
 hc = HandleConnection( port, file_dir, clients)
-try:
-    print('d Starting HandleConnection...')
-    print('d Use Ctrl+C to stop server.')
-    hc.start()
-except KeyboardInterrupt as ki:
-    print('\nd Used Ctrl+C.')
-    print('d Closing server.')
-    hc.close_all_connections()
 
+print('d Starting HandleConnection...')
+print('d Use Ctrl+C to stop server.')
+hc.start()

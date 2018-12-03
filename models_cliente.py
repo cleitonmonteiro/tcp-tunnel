@@ -24,17 +24,14 @@ class ConnectionToServer():
         self.send_pkt_syn()
         self.wait_for_syn_ack()
 
-
-    
     def send_file( self ):
         def print_parts_file( number_parts, len_total ):
             system("clear")
-            print("y Sending file...")
+            print("d Sending file...")
             aux = "#"*number_parts
             aux2 = " "*(len_total-number_parts)
             print("["+aux+ aux2 +"]")
-            
-
+        
         len_archive = popen("du -hsb " + self.filename).read().split("\t")[0]
         print(len_archive)
         print(self.filename)
@@ -45,12 +42,8 @@ class ConnectionToServer():
 
         count_part = 512
 
-
-
         while( True ):
-
             self.recv_ack_pkt()
-            
             if( self.window.can_send_pkt() ):
                 text = self.file.read( 512 )
                 
@@ -200,19 +193,19 @@ class ConnectionToServer():
         self.send_pkt( n_pkt )
 
     def wait_for_fin( self ):
-
-        while(True):
-            data, _ = self.conn.recvfrom( 524 )           
-            #print("[<==] ",end=" ")
-            #show_pkt( data )
+        self.conn.settimeout(2)
+        data, _ = self.conn.recvfrom( 524 )
+        #print("[<==] ",end=" ")
+        #show_pkt( data )
+        if data:
             pkt = unpack( data )
-
             if( pkt['FIN'] ):
                 self.send_pkt_ack_for_fin(pkt)
                 print('Received pkt fin.')
-                break
             else:
                 print('Not received pkt fin.')
+        else:
+            print('Timeout')
                 
 
 

@@ -20,4 +20,4 @@ try:
 except KeyboardInterrupt as ki:
     print('\nd Used Ctrl+C.')
     print('d Stopping all process.')
-    # connection.close()
+    connection.close()
